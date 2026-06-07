@@ -3,7 +3,7 @@
 This project uses FastAPI to provide synchronization endpoints for WatermelonDB. 
 
 ## Base URL
-`http://localhost:8000/sync` (or your production domain)
+`http://localhost:8001/sync` (or your production domain)
 
 ## Authentication
 All endpoints require a valid Supabase JWT Bearer token in the `Authorization` header.

@@ -1,12 +1,11 @@
 import { synchronize } from '@nozbe/watermelondb/sync'
 import { database } from './index'
-import { supabase } from '../lib/supabase'
+import { storage } from '../lib/api'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/sync'
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8001/sync'
 
 export async function syncDatabase() {
-  const session = await supabase.auth.getSession()
-  const token = session.data.session?.access_token
+  const token = await storage.getToken()
 
   if (!token) {
     console.error('Cannot sync: No authentication token')

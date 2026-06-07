@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
+import { useAuth } from '../lib/AuthContext';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { CustomInput } from '../components/CustomInput';
 import { colors } from '../theme/colors';
@@ -10,27 +11,18 @@ export const SignupScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { setToken } = useAuth();
 
   async function signUpWithEmail() {
     setLoading(true);
-    // Passing name in raw_user_meta_data to hit the Supabase trigger
-    const { error } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-      options: {
-        data: {
-          full_name: name,
-        }
-      }
-    });
-
-    if (error) {
+    try {
+      const data = await api.register(email, password, name);
+      setToken(data.access_token);
+    } catch (error: any) {
       Alert.alert('Sign up failed', error.message);
-    } else {
-      Alert.alert('Success', 'Please check your email for the confirmation link!');
-      navigation.navigate('Login');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (

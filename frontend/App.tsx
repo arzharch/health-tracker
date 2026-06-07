@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { supabase } from './src/lib/supabase';
-import { Session } from '@supabase/supabase-js';
+import { AuthProvider, useAuth } from './src/lib/AuthContext';
 
 // Screens
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -15,18 +14,12 @@ import { colors } from './src/theme/colors';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
+const Navigation = () => {
+  const { token, isLoading } = useAuth();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-  }, []);
+  if (isLoading) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <NavigationContainer>
@@ -37,7 +30,7 @@ export default function App() {
           headerShadowVisible: false,
         }}
       >
-        {session && session.user ? (
+        {token ? (
           // Authenticated Stack
           <>
             <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
@@ -54,5 +47,13 @@ export default function App() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <Navigation />
+    </AuthProvider>
   );
 }

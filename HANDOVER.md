@@ -33,7 +33,7 @@ pip install -r requirements.txt # (Dependencies are already installed in the ven
 # Run the server
 uvicorn app.main:app --reload
 ```
-The API will be available at `http://localhost:8000`. You can view the interactive Swagger docs at `http://localhost:8000/docs`.
+The API will be available at `http://localhost:8001`. You can view the interactive Swagger docs at `http://localhost:8001/docs`.
 
 ## 4. Running the Frontend
 The frontend is built with React Native and Expo.
@@ -49,6 +49,6 @@ npx expo start
 You can press `a` to run on an Android emulator, `i` to run on an iOS simulator, or scan the QR code with the Expo Go app on your physical device.
 
 ## Architectural Notes
-- **Sync Protocol**: The WatermelonDB sync manager (`frontend/src/db/sync.ts`) is configured to hit `http://localhost:8000/sync/pull` and `push`. If you run on a physical device, you must change `EXPO_PUBLIC_API_URL` to your computer's local IP address (e.g., `http://192.168.1.5:8000/sync`).
+- **Sync Protocol**: The WatermelonDB sync manager (`frontend/src/db/sync.ts`) is configured to hit `http://localhost:8001/sync/pull` and `push`. If you run on a physical device, you must change `EXPO_PUBLIC_API_URL` to your computer's local IP address (e.g., `http://192.168.1.5:8000/sync`).
 - **Gamification**: The streak calculation logic lives in `backend/app/gamification.py`. It is triggered during the `/sync/push` phase if habit logs are submitted.
 - **UI System**: All reusable components are in `frontend/src/components/` and rely heavily on the centralized theme in `frontend/src/theme/colors.ts`.

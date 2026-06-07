@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
+import { useAuth } from '../lib/AuthContext';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { CustomInput } from '../components/CustomInput';
 import { colors } from '../theme/colors';
@@ -9,19 +10,18 @@ export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { setToken } = useAuth();
 
   async function signInWithEmail() {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
-
-    if (error) {
+    try {
+      const data = await api.login(email, password);
+      setToken(data.access_token);
+    } catch (error: any) {
       Alert.alert('Sign in failed', error.message);
+    } finally {
+      setLoading(false);
     }
-    // If successful, auth state changes and navigation will be handled globally
-    setLoading(false);
   }
 
   return (
