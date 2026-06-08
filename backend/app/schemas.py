@@ -42,6 +42,7 @@ class TableChanges(BaseModel):
     deleted: List[str] # List of IDs
 
 class SyncChanges(BaseModel):
+    habits: Optional[TableChanges] = None
     habit_logs: Optional[TableChanges] = None
     tasks: Optional[TableChanges] = None
     journal_entries: Optional[TableChanges] = None

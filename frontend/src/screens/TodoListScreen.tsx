@@ -4,17 +4,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { MainLayout } from '../components/MainLayout';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useData } from '../lib/DataContext';
 
-export const TodoListScreen = () => {
-  const { tasks, toggleTask, addTask } = useData();
+import withObservables from '@nozbe/with-observables';
+import { database } from '../db';
+import { Task } from '../db/models';
+
+const TodoListScreenComponent = ({ tasks }: { tasks: Task[] }) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (newTaskTitle.trim()) {
-      addTask(newTaskTitle);
+      await database.write(async () => {
+        await database.collections.get<Task>('tasks').create(task => {
+          task.title = newTaskTitle;
+          task.isCompleted = false;
+        });
+      });
       setNewTaskTitle('');
     }
+  };
+
+  const toggleTask = async (task: Task) => {
+    await database.write(async () => {
+      await task.update(t => {
+        t.isCompleted = !t.isCompleted;
+      });
+    });
   };
 
   const completed = tasks.filter(t => t.isCompleted).length;
@@ -58,45 +73,52 @@ export const TodoListScreen = () => {
           <TouchableOpacity onPress={handleAddTask} activeOpacity={0.8}>
             <LinearGradient
               colors={['#1F8EFA', '#00C896']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.addButton}
             >
-              <Ionicons name="add" size={16} color={colors.surface} />
-              <Text style={styles.addButtonText}>Add</Text>
+              <Ionicons name="add" size={24} color={colors.surface} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {/* Tasks Section */}
-        <View style={styles.tasksSection}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="radio-button-off" size={16} color={colors.secondary} />
-            <Text style={styles.sectionTitle}>Pending Tasks</Text>
-          </View>
-
-          <View style={styles.tasksList}>
-            {tasks.map(task => (
-              <TouchableOpacity 
-                key={task.id} 
-                style={styles.taskCard}
-                onPress={() => toggleTask(task.id)}
+        {/* Tasks List */}
+        <View style={styles.listContainer}>
+          {tasks.length === 0 ? (
+            <Text style={styles.emptyText}>No tasks yet. Add one above!</Text>
+          ) : (
+            tasks.map(task => (
+              <TouchableOpacity
+                key={task.id}
+                style={[styles.taskItem, task.isCompleted && styles.taskItemCompleted]}
+                onPress={() => toggleTask(task)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkbox, task.isCompleted && styles.checkboxCompleted]}>
-                  {task.isCompleted && <Ionicons name="checkmark" size={14} color={colors.surface} />}
+                <View style={styles.taskLeft}>
+                  <View style={[styles.checkbox, task.isCompleted && styles.checkboxCompleted]}>
+                    {task.isCompleted && <Ionicons name="checkmark" size={16} color={colors.surface} />}
+                  </View>
+                  <Text style={[styles.taskTitle, task.isCompleted && styles.taskTitleCompleted]}>
+                    {task.title}
+                  </Text>
                 </View>
-                <Text style={[styles.taskTitle, task.isCompleted && styles.taskTitleCompleted]}>
-                  {task.title}
-                </Text>
+                {task.isCompleted && (
+                  <Ionicons name="star" size={16} color="#00C896" />
+                )}
               </TouchableOpacity>
-            ))}
-          </View>
+            ))
+          )}
         </View>
 
       </ScrollView>
     </MainLayout>
   );
 };
+
+const enhance = withObservables([], () => ({
+  tasks: database.collections.get<Task>('tasks').query().observe(),
+}));
+
+export const TodoListScreen = enhance(TodoListScreenComponent);
 
 const styles = StyleSheet.create({
   content: {
@@ -105,50 +127,50 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 16,
   },
   pageTitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#00B4D8',
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   pageSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
   },
   statsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 24,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+    justifyContent: 'space-between',
   },
   statCol: {
     alignItems: 'center',
-    flex: 1,
   },
   statLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
   },
   addTaskCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 8,
+    paddingLeft: 16,
     marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -158,77 +180,62 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    height: 44,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textPrimary,
-    marginRight: 12,
+    height: 40,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    gap: 4,
-  },
-  addButtonText: {
-    color: colors.surface,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  tasksSection: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
+    justifyContent: 'center',
   },
-  sectionTitle: {
-    fontSize: 14,
-    color: '#2B3482', // Dark blue as in screenshot
-    fontWeight: '500',
-  },
-  tasksList: {
+  listContainer: {
     gap: 12,
   },
-  taskCard: {
+  emptyText: {
+    textAlign: 'center',
+    color: colors.textLight,
+    marginTop: 20,
+    fontStyle: 'italic',
+  },
+  taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
   },
+  taskItemCompleted: {
+    backgroundColor: '#F0FBFA',
+    borderColor: '#00C896',
+  },
+  taskLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 6, // Square-ish for tasks
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.textSecondary,
     marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxCompleted: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#00C896',
+    borderColor: '#00C896',
   },
   taskTitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textPrimary,
+    fontWeight: '500',
   },
   taskTitleCompleted: {
     color: colors.textSecondary,

@@ -13,10 +13,20 @@ import { JournalScreen } from './src/screens/JournalScreen';
 import { StatisticsScreen } from './src/screens/StatisticsScreen';
 import { colors } from './src/theme/colors';
 
+import DatabaseProvider from '@nozbe/watermelondb/DatabaseProvider';
+import { database } from './src/db';
+import { syncDatabase } from './src/db/sync';
+
 const Stack = createNativeStackNavigator();
 
 const Navigation = () => {
   const { token, isLoading } = useAuth();
+
+  React.useEffect(() => {
+    if (token) {
+      syncDatabase().catch(err => console.error("Sync failed:", err));
+    }
+  }, [token]);
 
   if (isLoading) {
     return null; // Or a loading spinner
@@ -53,10 +63,10 @@ const Navigation = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <DataProvider>
+    <DatabaseProvider database={database}>
+      <AuthProvider>
         <Navigation />
-      </DataProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </DatabaseProvider>
   );
 }

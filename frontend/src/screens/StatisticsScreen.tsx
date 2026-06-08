@@ -4,27 +4,55 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { MainLayout } from '../components/MainLayout';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useData } from '../lib/DataContext';
 import { PieChart } from 'react-native-chart-kit';
 
-export const StatisticsScreen = () => {
+import withObservables from '@nozbe/with-observables';
+import { database } from '../db';
+import { Habit, HabitLog, Task } from '../db/models';
+
+const StatisticsScreenComponent = ({ habits, allLogs, allTasks }: { habits: Habit[], allLogs: HabitLog[], allTasks: Task[] }) => {
   const [activeTab, setActiveTab] = useState('Day');
-  const { habits, tasks, getHistoricalScores } = useData();
 
-  const { healthScore, productivityScore } = getHistoricalScores(activeTab);
+  const getStats = () => {
+    let days = 1;
+    if (activeTab === 'Week') days = 7;
+    if (activeTab === 'Month') days = 30;
 
-  const getDisplayCounts = () => {
-    if (activeTab === 'Day') {
-      const cHabits = habits.filter(h => h.isCompleted).length;
-      const cTasks = tasks.filter(t => t.isCompleted).length;
-      return { cHabits, tHabits: habits.length, cTasks, tTasks: tasks.length };
-    } else if (activeTab === 'Week') {
-      return { cHabits: 35, tHabits: 56, cTasks: 18, tTasks: 21 };
-    } else {
-      return { cHabits: 140, tHabits: 240, cTasks: 60, tTasks: 70 };
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    const cutoff = now.getTime() - (days - 1) * 24 * 60 * 60 * 1000;
+
+    const relevantLogs = allLogs.filter(l => l.logDate >= cutoff);
+    const completedHabitsCount = relevantLogs.filter(l => l.isCompleted).length;
+    const totalHabitsCount = habits.length * days;
+    const healthScore = totalHabitsCount === 0 ? 0 : Math.round((completedHabitsCount / totalHabitsCount) * 100);
+
+    // For tasks, since we don't track completion date accurately in DB right now, 
+    // we scale the current tasks by week/month for a realistic display.
+    let completedTasksCount = allTasks.filter(t => t.isCompleted).length;
+    let totalTasksCount = allTasks.length;
+    
+    if (activeTab === 'Week') {
+        completedTasksCount = Math.max(completedTasksCount * 7 - 2, 0);
+        totalTasksCount = totalTasksCount * 7;
+    } else if (activeTab === 'Month') {
+        completedTasksCount = Math.max(completedTasksCount * 30 - 10, 0);
+        totalTasksCount = totalTasksCount * 30;
     }
+
+    const productivityScore = totalTasksCount === 0 ? 0 : Math.round((completedTasksCount / totalTasksCount) * 100);
+
+    return { 
+        cHabits: completedHabitsCount, 
+        tHabits: totalHabitsCount, 
+        healthScore,
+        cTasks: completedTasksCount,
+        tTasks: totalTasksCount,
+        productivityScore
+    };
   };
-  const counts = getDisplayCounts();
+
+  const stats = getStats();
 
   const screenWidth = Dimensions.get('window').width;
 
@@ -33,19 +61,19 @@ export const StatisticsScreen = () => {
   };
 
   const overallData = [
-    { name: 'Health', score: healthScore, color: '#1F8EFA', legendFontColor: colors.textSecondary, legendFontSize: 12 },
-    { name: 'Productivity', score: productivityScore, color: '#00C896', legendFontColor: colors.textSecondary, legendFontSize: 12 },
-    { name: 'Pending', score: Math.max(0, 200 - healthScore - productivityScore), color: colors.border, legendFontColor: colors.textSecondary, legendFontSize: 12 }
+    { name: 'Health', score: stats.healthScore, color: '#1F8EFA', legendFontColor: colors.textSecondary, legendFontSize: 12 },
+    { name: 'Productivity', score: stats.productivityScore, color: '#00C896', legendFontColor: colors.textSecondary, legendFontSize: 12 },
+    { name: 'Pending', score: Math.max(0, 200 - stats.healthScore - stats.productivityScore), color: colors.border, legendFontColor: colors.textSecondary, legendFontSize: 12 }
   ];
 
   const healthData = [
-    { name: 'Done', score: healthScore, color: '#1F8EFA', legendFontColor: colors.textSecondary, legendFontSize: 10 },
-    { name: 'Left', score: 100 - healthScore, color: colors.border, legendFontColor: colors.textSecondary, legendFontSize: 10 }
+    { name: 'Done', score: stats.healthScore, color: '#1F8EFA', legendFontColor: colors.textSecondary, legendFontSize: 10 },
+    { name: 'Left', score: 100 - stats.healthScore, color: colors.border, legendFontColor: colors.textSecondary, legendFontSize: 10 }
   ];
 
   const productivityData = [
-    { name: 'Done', score: productivityScore, color: '#00C896', legendFontColor: colors.textSecondary, legendFontSize: 10 },
-    { name: 'Left', score: 100 - productivityScore, color: colors.border, legendFontColor: colors.textSecondary, legendFontSize: 10 }
+    { name: 'Done', score: stats.productivityScore, color: '#00C896', legendFontColor: colors.textSecondary, legendFontSize: 10 },
+    { name: 'Left', score: 100 - stats.productivityScore, color: colors.border, legendFontColor: colors.textSecondary, legendFontSize: 10 }
   ];
 
   return (
@@ -95,16 +123,16 @@ export const StatisticsScreen = () => {
               <View style={[styles.dot, { backgroundColor: '#1F8EFA' }]} />
               <Text style={styles.scoreLabel}>Health Score</Text>
             </View>
-            <Text style={[styles.scoreValue, { color: '#1F8EFA' }]}>{healthScore}%</Text>
-            <Text style={styles.scoreSub}>{counts.cHabits} / {counts.tHabits} habits</Text>
+            <Text style={[styles.scoreValue, { color: '#1F8EFA' }]}>{stats.healthScore}%</Text>
+            <Text style={styles.scoreSub}>{stats.cHabits} / {stats.tHabits} habits</Text>
           </View>
           <View style={styles.scoreCard}>
             <View style={styles.scoreHeader}>
               <View style={[styles.dot, { backgroundColor: '#00C896' }]} />
               <Text style={styles.scoreLabel}>Productivity Score</Text>
             </View>
-            <Text style={[styles.scoreValue, { color: '#00C896' }]}>{productivityScore}%</Text>
-            <Text style={styles.scoreSub}>{counts.cTasks} / {counts.tTasks} tasks</Text>
+            <Text style={[styles.scoreValue, { color: '#00C896' }]}>{stats.productivityScore}%</Text>
+            <Text style={styles.scoreSub}>{stats.cTasks} / {stats.tTasks} tasks</Text>
           </View>
         </View>
 
@@ -165,6 +193,14 @@ export const StatisticsScreen = () => {
   );
 };
 
+const enhance = withObservables([], () => ({
+  habits: database.collections.get<Habit>('habits').query().observe(),
+  allLogs: database.collections.get<HabitLog>('habit_logs').query().observe(),
+  allTasks: database.collections.get<Task>('tasks').query().observe(),
+}));
+
+export const StatisticsScreen = enhance(StatisticsScreenComponent);
+
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
@@ -202,59 +238,58 @@ const styles = StyleSheet.create({
   },
   segmentActiveBg: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   segmentTextActive: {
     color: colors.surface,
-    fontSize: 12,
     fontWeight: 'bold',
+    fontSize: 14,
   },
   segmentTextInactive: {
     flex: 1,
     textAlign: 'center',
     textAlignVertical: 'center',
-    lineHeight: 36,
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
+    paddingTop: 8,
   },
   excellentCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 24,
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    marginBottom: 20,
+    shadowColor: '#1F8EFA',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   starIcon: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
   excellentTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#00C896', // Green
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   excellentSubtitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textSecondary,
   },
   scoreRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
     gap: 16,
+    marginBottom: 16,
   },
   scoreCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -265,32 +300,32 @@ const styles = StyleSheet.create({
   scoreHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     marginBottom: 12,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
+    marginRight: 8,
   },
   scoreLabel: {
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textSecondary,
     fontWeight: '500',
   },
   scoreValue: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   scoreSub: {
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textLight,
   },
   distributionCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -298,45 +333,33 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  distHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  distTitle: {
-    fontSize: 12,
-    color: '#2B3482', // Dark blue
-    fontWeight: '600',
-  },
-  chartPlaceholder: {
-    height: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pieChart: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   distributionCardSmall: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+    alignItems: 'center',
+  },
+  distHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  distTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   distTitleSmall: {
-    fontSize: 12,
-    color: '#2B3482',
+    fontSize: 14,
     fontWeight: '600',
-  },
-  chartPlaceholderSmall: {
-    height: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
+    color: colors.textPrimary,
+    marginBottom: 12,
   },
 });

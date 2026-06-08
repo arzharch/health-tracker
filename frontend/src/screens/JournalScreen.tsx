@@ -2,14 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform, FlatList, TouchableOpacity } from 'react-native';
 import { colors } from '../theme/colors';
 import { MainLayout } from '../components/MainLayout';
-import { useData } from '../lib/DataContext';
 
-interface JournalEntry {
-  id: string;
-  date: string;
-  content: string;
-  mood: string;
-}
+import withObservables from '@nozbe/with-observables';
+import { database } from '../db';
+import { JournalEntry } from '../db/models';
+import { Q } from '@nozbe/watermelondb';
 
 const MOODS = [
   { emoji: '😭', label: 'Terrible' },
@@ -19,34 +16,44 @@ const MOODS = [
   { emoji: '🤩', label: 'Great' },
 ];
 
-export const JournalScreen = () => {
-  const { journalEntries, addJournalEntry } = useData();
+const JournalScreenComponent = ({ entries }: { entries: JournalEntry[] }) => {
   const [newEntry, setNewEntry] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
 
-  const handleAddEntry = () => {
+  const handleAddEntry = async () => {
     if (newEntry.trim() && selectedMood) {
-      addJournalEntry({
-        date: new Date().toDateString(),
-        content: newEntry,
-        mood: selectedMood
+      await database.write(async () => {
+        await database.collections.get<JournalEntry>('journal_entries').create(entry => {
+          entry.content = `${selectedMood}|${newEntry}`;
+          entry.entryDate = new Date().getTime();
+        });
       });
       setNewEntry('');
       setSelectedMood(null);
     }
   };
 
-  const renderEntry = ({ item }: { item: JournalEntry }) => (
-    <View style={styles.entryCard}>
-      <View style={styles.entryImagePlaceholder}>
-        <Text style={styles.entryMood}>{item.mood}</Text>
+  const renderEntry = ({ item }: { item: JournalEntry }) => {
+    let mood = '📝';
+    let text = item.content;
+    if (text.includes('|')) {
+      const parts = text.split('|');
+      mood = parts[0];
+      text = parts.slice(1).join('|');
+    }
+    
+    return (
+      <View style={styles.entryCard}>
+        <View style={styles.entryImagePlaceholder}>
+          <Text style={styles.entryMood}>{mood}</Text>
+        </View>
+        <View style={styles.entryCaption}>
+          <Text style={styles.entryContent}>{text}</Text>
+          <Text style={styles.entryDate}>{new Date(item.entryDate).toDateString()}</Text>
+        </View>
       </View>
-      <View style={styles.entryCaption}>
-        <Text style={styles.entryContent}>{item.content}</Text>
-        <Text style={styles.entryDate}>{item.date}</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <MainLayout>
@@ -58,49 +65,59 @@ export const JournalScreen = () => {
         <Text style={styles.pageTitle}>Journal</Text>
 
         <FlatList
-          data={journalEntries}
+          data={entries}
           keyExtractor={item => item.id}
           renderItem={renderEntry}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No entries yet. How are you feeling today?</Text>
+          }
         />
 
-        <View style={styles.inputSection}>
-          <Text style={styles.promptText}>How are you feeling?</Text>
+        <View style={styles.composerCard}>
+          <Text style={styles.composerTitle}>How are you feeling?</Text>
           <View style={styles.moodSelector}>
-            {MOODS.map((mood, idx) => (
+            {MOODS.map((m) => (
               <TouchableOpacity 
-                key={idx} 
-                style={[styles.moodBtn, selectedMood === mood.emoji && styles.moodBtnSelected]}
-                onPress={() => setSelectedMood(mood.emoji)}
-                activeOpacity={0.7}
+                key={m.label} 
+                style={[styles.moodBtn, selectedMood === m.emoji && styles.moodBtnSelected]}
+                onPress={() => setSelectedMood(m.emoji)}
               >
-                <Text style={styles.moodEmoji}>{mood.emoji}</Text>
+                <Text style={styles.moodEmoji}>{m.emoji}</Text>
               </TouchableOpacity>
             ))}
           </View>
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Write your thoughts..."
-            placeholderTextColor={colors.textLight}
-            multiline
-            value={newEntry}
-            onChangeText={setNewEntry}
-          />
-          <TouchableOpacity 
-            style={[styles.saveButton, (!newEntry.trim() || !selectedMood) && styles.saveButtonDisabled]}
-            onPress={handleAddEntry}
-            disabled={!newEntry.trim() || !selectedMood}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.saveButtonText}>SAVE ENTRY</Text>
-          </TouchableOpacity>
+
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Write your thoughts..."
+              placeholderTextColor={colors.textLight}
+              value={newEntry}
+              onChangeText={setNewEntry}
+              multiline
+              maxLength={200}
+            />
+            <TouchableOpacity 
+              style={[styles.postButton, (!newEntry.trim() || !selectedMood) && styles.postButtonDisabled]}
+              onPress={handleAddEntry}
+              disabled={!newEntry.trim() || !selectedMood}
+            >
+              <Text style={styles.postButtonText}>Post</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </MainLayout>
   );
 };
+
+const enhance = withObservables([], () => ({
+  entries: database.collections.get<JournalEntry>('journal_entries').query(Q.sortBy('entry_date', Q.desc)).observe(),
+}));
+
+export const JournalScreen = enhance(JournalScreenComponent);
 
 const styles = StyleSheet.create({
   content: {
@@ -108,35 +125,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   pageTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 16,
-    marginLeft: 4,
+    marginVertical: 16,
+    textAlign: 'center',
   },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: 20,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.textLight,
+    marginTop: 40,
+    fontStyle: 'italic',
   },
   entryCard: {
     backgroundColor: colors.surface,
-    borderRadius: 8,
-    marginBottom: 24,
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-    overflow: 'hidden',
   },
   entryImagePlaceholder: {
-    backgroundColor: '#F7FAFC',
     height: 120,
+    backgroundColor: '#F0FBFA',
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   entryMood: {
     fontSize: 48,
@@ -145,28 +161,31 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   entryContent: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textPrimary,
-    lineHeight: 20,
-    fontWeight: '500',
-    marginBottom: 12,
+    lineHeight: 24,
+    marginBottom: 8,
   },
   entryDate: {
-    fontSize: 10,
-    color: colors.textLight,
-    fontWeight: '700',
-    textAlign: 'right',
+    fontSize: 12,
+    color: colors.textSecondary,
   },
-  inputSection: {
-    marginTop: 'auto',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 16,
-    paddingBottom: 24,
+  composerCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 180, 216, 0.2)',
+    shadowColor: '#1F8EFA',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  promptText: {
+  composerTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: colors.textPrimary,
     marginBottom: 12,
   },
@@ -174,49 +193,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
-    paddingHorizontal: 16,
   },
   moodBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
   },
   moodBtnSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
-    borderWidth: 2,
+    backgroundColor: '#E6F4FF',
+    borderColor: '#1F8EFA',
   },
   moodEmoji: {
-    fontSize: 20,
+    fontSize: 24,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   input: {
-    backgroundColor: colors.surface,
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 12,
+    paddingTop: 12,
+    fontSize: 15,
+    color: colors.textPrimary,
+    minHeight: 80,
+    marginRight: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    padding: 16,
-    height: 100,
-    fontSize: 14,
-    color: colors.textPrimary,
     textAlignVertical: 'top',
-    marginBottom: 16,
   },
-  saveButton: {
-    backgroundColor: '#95D965', // Light green from screenshot
-    borderRadius: 8,
-    height: 48,
-    alignItems: 'center',
+  postButton: {
+    backgroundColor: '#1F8EFA',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    height: 44,
     justifyContent: 'center',
   },
-  saveButtonDisabled: {
-    opacity: 0.5,
+  postButtonDisabled: {
+    backgroundColor: colors.border,
   },
-  saveButtonText: {
+  postButtonText: {
     color: colors.surface,
     fontWeight: 'bold',
     fontSize: 14,
