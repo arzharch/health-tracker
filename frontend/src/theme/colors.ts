@@ -1,25 +1,17 @@
 export const colors = {
-  background: '#FFFFFF', // Pure White
+  background: '#F0FAFA', // Very light cyan background
   surface: '#FFFFFF', // White cards
-  textPrimary: '#4B4B4B', // Charcoal
-  textSecondary: '#AFAFAF', // Silver
+  textPrimary: '#2D3748', // Dark gray/blue for text
+  textSecondary: '#718096', // Light gray for secondary text
+  textLight: '#A0AEC0',
   
-  // Core Accents (Duolingo Style)
-  primary: '#58CC02', // Feather Green
-  primaryShadow: '#58A700',
-  secondary: '#1CB0F6', // Macaw Blue
-  secondaryShadow: '#1899D6',
-  
-  // Semantic
-  success: '#58CC02',
-  warning: '#FFC800', // Bee Yellow
-  warningShadow: '#D3A300',
-  error: '#FF4B4B', // Rose Red
-  errorShadow: '#EA2B2B',
+  // Core Accents
+  primary: '#00C896', // Teal/Green
+  secondary: '#1F8EFA', // Bright Blue
   
   // Specific Use Cases
-  streak: '#FF9600', // Fire Orange
-  freeze: '#1CB0F6',
+  success: '#00C896',
+  error: '#FF4B4B',
   
-  border: '#E5E5E5', // Swan Grey
+  border: '#E2E8F0', // Soft gray border
 };

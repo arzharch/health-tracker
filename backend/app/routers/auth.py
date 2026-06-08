@@ -22,10 +22,16 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserData(BaseModel):
+    id: str
+    email: str
+    display_name: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
     user_id: str
+    user: Optional[UserData] = None
 
 def get_password_hash(password: str) -> str:
     pwd_bytes = password.encode('utf-8')
@@ -81,7 +87,16 @@ def register_user(user: UserCreate):
         expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer", "user_id": new_user['id']}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "user_id": new_user['id'],
+        "user": {
+            "id": new_user['id'],
+            "email": user.email,
+            "display_name": user.full_name or user.email.split('@')[0]
+        }
+    }
 
 @router.post("/login", response_model=Token)
 def login_user(user: UserLogin):
@@ -99,7 +114,19 @@ def login_user(user: UserLogin):
         expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer", "user_id": db_user['id']}
+    profile_res = supabase.table('profiles').select('display_name').eq('id', db_user['id']).execute()
+    display_name = profile_res.data[0]['display_name'] if len(profile_res.data) > 0 else db_user['email'].split('@')[0]
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "user_id": db_user['id'],
+        "user": {
+            "id": db_user['id'],
+            "email": db_user['email'],
+            "display_name": display_name
+        }
+    }
 
 @router.post("/revoke")
 def revoke_tokens(user_id: str):

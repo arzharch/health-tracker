@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/lib/AuthContext';
+import { DataProvider } from './src/lib/DataContext';
 
 // Screens
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -34,9 +35,9 @@ const Navigation = () => {
           // Authenticated Stack
           <>
             <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="TodoList" component={TodoListScreen} options={{ title: 'To-Do List' }} />
-            <Stack.Screen name="Journal" component={JournalScreen} options={{ title: 'Journal' }} />
-            <Stack.Screen name="Statistics" component={StatisticsScreen} options={{ title: 'Statistics' }} />
+            <Stack.Screen name="TodoList" component={TodoListScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Journal" component={JournalScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Statistics" component={StatisticsScreen} options={{ headerShown: false }} />
           </>
         ) : (
           // Auth Stack
@@ -53,7 +54,9 @@ const Navigation = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <Navigation />
+      <DataProvider>
+        <Navigation />
+      </DataProvider>
     </AuthProvider>
   );
 }

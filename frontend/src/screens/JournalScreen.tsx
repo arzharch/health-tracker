@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform, FlatList, TouchableOpacity } from 'react-native';
 import { colors } from '../theme/colors';
-import { PrimaryButton } from '../components/PrimaryButton';
+import { MainLayout } from '../components/MainLayout';
+import { useData } from '../lib/DataContext';
 
 interface JournalEntry {
   id: string;
@@ -18,32 +19,29 @@ const MOODS = [
   { emoji: '🤩', label: 'Great' },
 ];
 
-const MOCK_ENTRIES: JournalEntry[] = [
-  { id: '1', date: new Date().toDateString(), content: 'Feeling great today! Drank all my water and worked out.', mood: '🤩' },
-];
-
-export const JournalScreen = ({ navigation }: any) => {
-  const [entries, setEntries] = useState<JournalEntry[]>(MOCK_ENTRIES);
+export const JournalScreen = () => {
+  const { journalEntries, addJournalEntry } = useData();
   const [newEntry, setNewEntry] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
 
-  const addEntry = () => {
+  const handleAddEntry = () => {
     if (newEntry.trim() && selectedMood) {
-      setEntries([
-        { id: Date.now().toString(), date: new Date().toDateString(), content: newEntry, mood: selectedMood },
-        ...entries
-      ]);
+      addJournalEntry({
+        date: new Date().toDateString(),
+        content: newEntry,
+        mood: selectedMood
+      });
       setNewEntry('');
       setSelectedMood(null);
     }
   };
 
   const renderEntry = ({ item }: { item: JournalEntry }) => (
-    <View style={styles.polaroidCard}>
-      <View style={styles.polaroidImagePlaceholder}>
-        <Text style={styles.polaroidMood}>{item.mood}</Text>
+    <View style={styles.entryCard}>
+      <View style={styles.entryImagePlaceholder}>
+        <Text style={styles.entryMood}>{item.mood}</Text>
       </View>
-      <View style={styles.polaroidCaption}>
+      <View style={styles.entryCaption}>
         <Text style={styles.entryContent}>{item.content}</Text>
         <Text style={styles.entryDate}>{item.date}</Text>
       </View>
@@ -51,16 +49,16 @@ export const JournalScreen = ({ navigation }: any) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <MainLayout>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
         keyboardVerticalOffset={100}
       >
-        <Text style={styles.title}>Journal</Text>
+        <Text style={styles.pageTitle}>Journal</Text>
 
         <FlatList
-          data={entries}
+          data={journalEntries}
           keyExtractor={item => item.id}
           renderItem={renderEntry}
           contentContainerStyle={styles.listContent}
@@ -75,6 +73,7 @@ export const JournalScreen = ({ navigation }: any) => {
                 key={idx} 
                 style={[styles.moodBtn, selectedMood === mood.emoji && styles.moodBtnSelected]}
                 onPress={() => setSelectedMood(mood.emoji)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.moodEmoji}>{mood.emoji}</Text>
               </TouchableOpacity>
@@ -84,90 +83,89 @@ export const JournalScreen = ({ navigation }: any) => {
           <TextInput
             style={styles.input}
             placeholder="Write your thoughts..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textLight}
             multiline
             value={newEntry}
             onChangeText={setNewEntry}
           />
-          <PrimaryButton 
-            title="Save Entry" 
-            onPress={addEntry} 
+          <TouchableOpacity 
+            style={[styles.saveButton, (!newEntry.trim() || !selectedMood) && styles.saveButtonDisabled]}
+            onPress={handleAddEntry}
             disabled={!newEntry.trim() || !selectedMood}
-          />
+            activeOpacity={0.8}
+          >
+            <Text style={styles.saveButtonText}>SAVE ENTRY</Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </MainLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   content: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 16,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: '800',
     color: colors.textPrimary,
     marginBottom: 16,
+    marginLeft: 4,
   },
   listContent: {
     paddingBottom: 24,
   },
-  polaroidCard: {
+  entryCard: {
     backgroundColor: colors.surface,
-    padding: 12,
-    borderRadius: 8, // slight rounding for polaroid
+    borderRadius: 8,
     marginBottom: 24,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-    transform: [{ rotate: '-1deg' }], // Playful tilt
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    overflow: 'hidden',
   },
-  polaroidImagePlaceholder: {
-    backgroundColor: colors.border + '50',
+  entryImagePlaceholder: {
+    backgroundColor: '#F7FAFC',
     height: 120,
-    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  polaroidMood: {
-    fontSize: 64,
+  entryMood: {
+    fontSize: 48,
   },
-  polaroidCaption: {
-    paddingHorizontal: 8,
+  entryCaption: {
+    padding: 16,
   },
   entryContent: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textPrimary,
-    lineHeight: 24,
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'Marker Felt' : 'normal', // Adds a handwritten feel if available
+    lineHeight: 20,
+    fontWeight: '500',
+    marginBottom: 12,
   },
   entryDate: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 8,
+    fontSize: 10,
+    color: colors.textLight,
     fontWeight: '700',
     textAlign: 'right',
   },
   inputSection: {
     marginTop: 'auto',
-    borderTopWidth: 2,
+    borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 16,
+    paddingBottom: 24,
   },
   promptText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: colors.textPrimary,
     marginBottom: 12,
@@ -176,38 +174,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
   moodBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderBottomWidth: 4,
   },
   moodBtnSelected: {
     borderColor: colors.primary,
-    backgroundColor: colors.primary + '20',
-    borderBottomWidth: 2,
-    marginTop: 2,
+    backgroundColor: colors.primary + '10',
+    borderWidth: 2,
   },
   moodEmoji: {
-    fontSize: 24,
+    fontSize: 20,
   },
   input: {
     backgroundColor: colors.surface,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
-    height: 120,
-    fontSize: 16,
+    height: 100,
+    fontSize: 14,
     color: colors.textPrimary,
     textAlignVertical: 'top',
     marginBottom: 16,
-    fontWeight: '500',
+  },
+  saveButton: {
+    backgroundColor: '#95D965', // Light green from screenshot
+    borderRadius: 8,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    color: colors.surface,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });
