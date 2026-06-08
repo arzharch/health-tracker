@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { colors } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
 
 interface TaskItem {
   id: string;
@@ -23,19 +24,19 @@ export const TodoListScreen = ({ navigation }: any) => {
 
   const addTask = () => {
     if (newTaskTitle.trim()) {
-      setTasks([...tasks, { id: Date.now().toString(), title: newTaskTitle, isCompleted: false }]);
+      setTasks([{ id: Date.now().toString(), title: newTaskTitle, isCompleted: false }, ...tasks]);
       setNewTaskTitle('');
     }
   };
 
   const renderTask = ({ item }: { item: TaskItem }) => (
     <TouchableOpacity 
-      style={styles.taskItem} 
+      style={[styles.taskItem, item.isCompleted && styles.taskItemCompleted]} 
       onPress={() => toggleTask(item.id)}
       activeOpacity={0.7}
     >
       <View style={[styles.checkbox, item.isCompleted && styles.checkboxCompleted]}>
-        {item.isCompleted && <Text style={styles.checkmark}>✓</Text>}
+        {item.isCompleted && <Ionicons name="checkmark" size={20} color={colors.background} style={{ fontWeight: 'bold' }} />}
       </View>
       <Text style={[styles.taskTitle, item.isCompleted && styles.taskTitleCompleted]}>
         {item.title}
@@ -45,20 +46,24 @@ export const TodoListScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>To-Do List</Text>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.content}
+        keyboardVerticalOffset={100}
+      >
+        <Text style={styles.title}>Quests</Text>
         
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Add a new task..."
+            placeholder="Add a new quest..."
             placeholderTextColor={colors.textSecondary}
             value={newTaskTitle}
             onChangeText={setNewTaskTitle}
             onSubmitEditing={addTask}
           />
           <TouchableOpacity style={styles.addButton} onPress={addTask}>
-            <Text style={styles.addButtonText}>+</Text>
+            <Ionicons name="add" size={32} color={colors.background} style={styles.addIcon} />
           </TouchableOpacity>
         </View>
 
@@ -67,8 +72,15 @@ export const TodoListScreen = ({ navigation }: any) => {
           keyExtractor={item => item.id}
           renderItem={renderTask}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="sparkles" size={64} color={colors.border} />
+              <Text style={styles.emptyText}>All caught up! You're amazing.</Text>
+            </View>
+          }
         />
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -84,37 +96,38 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '900',
     color: colors.textPrimary,
     marginBottom: 24,
   },
   inputContainer: {
     flexDirection: 'row',
     marginBottom: 24,
+    gap: 12,
   },
   input: {
     flex: 1,
-    height: 50,
+    height: 60,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.textPrimary,
-    marginRight: 12,
   },
   addButton: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     backgroundColor: colors.primary,
-    borderRadius: 8,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    borderBottomWidth: 4,
+    borderColor: colors.primaryShadow,
   },
-  addButtonText: {
-    color: colors.background,
-    fontSize: 24,
+  addIcon: {
     fontWeight: 'bold',
   },
   listContent: {
@@ -124,38 +137,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     marginBottom: 12,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
+    borderBottomWidth: 4, // 3D effect
+  },
+  taskItemCompleted: {
+    backgroundColor: colors.border + '30', // slight gray
+    borderColor: colors.border,
+    borderBottomWidth: 2, // pressed down
+    marginTop: 2,
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+    backgroundColor: colors.background,
   },
   checkboxCompleted: {
     backgroundColor: colors.success,
     borderColor: colors.success,
   },
-  checkmark: {
-    color: colors.background,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   taskTitle: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
     color: colors.textPrimary,
     flex: 1,
   },
   taskTitleCompleted: {
     color: colors.textSecondary,
     textDecorationLine: 'line-through',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.textSecondary,
   },
 });

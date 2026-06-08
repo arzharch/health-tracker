@@ -1,19 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, RefreshControl } from 'react-native';
 import { HabitCard } from '../components/HabitCard';
 import { colors } from '../theme/colors';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { Header } from '../components/Header';
 import { syncDatabase } from '../db/sync';
+import { Ionicons } from '@expo/vector-icons';
 
-// Mock data for initial rendering until WatermelonDB is fully hooked up to React components
-const MOCK_HABITS = [
-  { id: '1', name: 'Drink 8 glasses of water', isCompleted: true, currentValue: 8, targetValue: 8, unit: 'glasses' },
-  { id: '2', name: 'Exercise for 30 minutes', isCompleted: false, currentValue: 15, targetValue: 30, unit: 'minutes' },
-  { id: '3', name: 'Read for 15 minutes', isCompleted: false, currentValue: 0, targetValue: 15, unit: 'minutes' },
+type IconName = keyof typeof Ionicons.glyphMap;
+
+const INITIAL_HABITS = [
+  { id: '1', name: 'Drink Water', isCompleted: true, currentValue: 8, targetValue: 8, unit: 'glasses', icon: 'water' as IconName },
+  { id: '2', name: 'Morning Run', isCompleted: false, currentValue: 0, targetValue: 30, unit: 'mins', icon: 'walk' as IconName },
+  { id: '3', name: 'Read a Book', isCompleted: false, currentValue: 0, targetValue: 15, unit: 'mins', icon: 'book' as IconName },
+  { id: '4', name: 'Meditate', isCompleted: false, currentValue: 0, targetValue: 10, unit: 'mins', icon: 'leaf' as IconName },
+  { id: '5', name: 'Eat Vegetables', isCompleted: false, currentValue: 1, targetValue: 3, unit: 'servings', icon: 'nutrition' as IconName },
+  { id: '6', name: 'Sleep 8 Hours', isCompleted: false, currentValue: 6, targetValue: 8, unit: 'hours', icon: 'moon' as IconName },
+  { id: '7', name: 'No Sugar', isCompleted: true, currentValue: 1, targetValue: 1, unit: 'day', icon: 'fast-food' as IconName },
+  { id: '8', name: 'Stretch', isCompleted: false, currentValue: 0, targetValue: 5, unit: 'mins', icon: 'body' as IconName },
 ];
 
 export const HomeScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
+  const [habits, setHabits] = useState(INITIAL_HABITS);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -25,8 +34,27 @@ export const HomeScreen = ({ navigation }: any) => {
     setRefreshing(false);
   };
 
+  const toggleHabit = (id: string) => {
+    setHabits(prevHabits => 
+      prevHabits.map(habit => {
+        if (habit.id === id) {
+          const isCompleted = !habit.isCompleted;
+          return {
+            ...habit,
+            isCompleted,
+            currentValue: isCompleted ? habit.targetValue : 0
+          };
+        }
+        return habit;
+      })
+    );
+  };
+
+  const completedCount = habits.filter(h => h.isCompleted).length;
+
   return (
     <SafeAreaView style={styles.container}>
+      <Header streak={0} freezes={0} />
       <ScrollView 
         contentContainerStyle={styles.content}
         refreshControl={
@@ -34,26 +62,17 @@ export const HomeScreen = ({ navigation }: any) => {
         }
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Good Morning, User!</Text>
-            <Text style={styles.date}>{new Date().toDateString()}</Text>
-          </View>
-          
-          <View style={styles.statsContainer}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>12</Text>
-              <Text style={styles.statLabel}>Day Streak 🔥</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>1</Text>
-              <Text style={styles.statLabel}>Freezes ❄️</Text>
-            </View>
-          </View>
+          <Text style={styles.greeting}>Ready to crush it?</Text>
+          <Text style={styles.date}>{new Date().toDateString()}</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Daily Habits (1/8)</Text>
-          {MOCK_HABITS.map(habit => (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Daily Quests</Text>
+            <Text style={styles.progressText}>{completedCount}/{habits.length}</Text>
+          </View>
+          
+          {habits.map(habit => (
             <HabitCard
               key={habit.id}
               title={habit.name}
@@ -61,28 +80,31 @@ export const HomeScreen = ({ navigation }: any) => {
               currentValue={habit.currentValue}
               targetValue={habit.targetValue}
               unit={habit.unit}
-              onToggle={() => console.log('Toggle habit', habit.id)}
+              iconName={habit.icon}
+              onToggle={() => toggleHabit(habit.id)}
             />
           ))}
         </View>
 
         <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <PrimaryButton 
-            title="Go to To-Do List" 
-            onPress={() => navigation.navigate('TodoList')} 
-            variant="outline"
-          />
-          <PrimaryButton 
-            title="Write in Journal" 
-            onPress={() => navigation.navigate('Journal')} 
-            variant="outline"
-          />
-          <PrimaryButton 
-            title="View Statistics" 
-            onPress={() => navigation.navigate('Statistics')} 
-            variant="outline"
-          />
+          <Text style={styles.sectionTitle}>Extra Activities</Text>
+          <View style={styles.actionGrid}>
+            <PrimaryButton 
+              title="To-Do List" 
+              onPress={() => navigation.navigate('TodoList')} 
+              variant="secondary"
+            />
+            <PrimaryButton 
+              title="Journal" 
+              onPress={() => navigation.navigate('Journal')} 
+              variant="outline"
+            />
+            <PrimaryButton 
+              title="Statistics" 
+              onPress={() => navigation.navigate('Statistics')} 
+              variant="solid"
+            />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -95,55 +117,48 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 24,
+    padding: 20,
+    paddingBottom: 40,
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 24,
+    marginTop: 16,
   },
   greeting: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '900', // Extra bold for Duolingo style
     color: colors.textPrimary,
   },
   date: {
     fontSize: 16,
     color: colors.textSecondary,
     marginTop: 4,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    marginTop: 20,
-    gap: 12,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 32,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.textPrimary,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  progressText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.primary,
   },
   quickActions: {
     marginBottom: 32,
+  },
+  actionGrid: {
+    gap: 8,
+    marginTop: 16,
   },
 });

@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 interface HabitCardProps {
@@ -9,6 +10,7 @@ interface HabitCardProps {
   targetValue?: number;
   currentValue?: number;
   unit?: string;
+  iconName?: keyof typeof Ionicons.glyphMap;
 }
 
 export const HabitCard: React.FC<HabitCardProps> = ({ 
@@ -17,83 +19,140 @@ export const HabitCard: React.FC<HabitCardProps> = ({
   onToggle,
   targetValue,
   currentValue,
-  unit
+  unit,
+  iconName = 'star'
 }) => {
+  const [isPressed, setIsPressed] = useState(false);
+
   return (
-    <TouchableOpacity 
-      style={[styles.card, isCompleted && styles.completedCard]} 
+    <Pressable 
+      style={styles.container}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
       onPress={onToggle}
-      activeOpacity={0.7}
     >
-      <View style={styles.content}>
-        <Text style={[styles.title, isCompleted && styles.completedText]}>{title}</Text>
-        {targetValue !== undefined && currentValue !== undefined && unit && (
-          <Text style={[styles.progressText, isCompleted && styles.completedText]}>
-            {currentValue} / {targetValue} {unit}
-          </Text>
-        )}
+      <View style={[
+        styles.cardBase, 
+        isCompleted ? styles.completedBase : styles.uncompletedBase,
+        isPressed && styles.cardBasePressed
+      ]}>
+        <View style={[
+          styles.cardTop, 
+          isCompleted ? styles.completedTop : styles.uncompletedTop,
+          isPressed ? styles.cardTopPressed : styles.cardTopUnpressed
+        ]}>
+          <View style={[styles.iconContainer, isCompleted && styles.iconContainerCompleted]}>
+            <Ionicons 
+              name={iconName} 
+              size={28} 
+              color={isCompleted ? colors.success : colors.secondary} 
+            />
+          </View>
+          
+          <View style={styles.content}>
+            <Text style={[styles.title, isCompleted && styles.completedText]}>{title}</Text>
+            {targetValue !== undefined && currentValue !== undefined && unit && (
+              <Text style={[styles.progressText, isCompleted && styles.completedText]}>
+                {currentValue} / {targetValue} {unit}
+              </Text>
+            )}
+          </View>
+
+          <View style={[styles.checkbox, isCompleted && styles.checkboxCompleted]}>
+            {isCompleted && <Ionicons name="checkmark" size={20} color={colors.background} style={styles.checkmarkIcon} />}
+          </View>
+        </View>
       </View>
-      <View style={[styles.checkbox, isCompleted && styles.checkboxCompleted]}>
-        {isCompleted && <Text style={styles.checkmark}>✓</Text>}
-      </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
+  container: {
     marginVertical: 6,
+    width: '100%',
+  },
+  cardBase: {
+    borderRadius: 16,
+    width: '100%',
+    paddingBottom: 4, // 3D effect depth
+  },
+  uncompletedBase: {
+    backgroundColor: colors.border,
+  },
+  completedBase: {
+    backgroundColor: colors.primaryShadow,
+  },
+  cardBasePressed: {
+    paddingBottom: 0,
+    marginTop: 4,
+  },
+  cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+  },
+  uncompletedTop: {
+    backgroundColor: colors.surface,
     borderColor: colors.border,
   },
-  completedCard: {
-    backgroundColor: colors.success + '20', // 20% opacity sage green
+  completedTop: {
+    backgroundColor: colors.success + '1A', // very light green
     borderColor: colors.success,
+  },
+  cardTopUnpressed: {
+    transform: [{ translateY: 0 }],
+  },
+  cardTopPressed: {
+    transform: [{ translateY: 0 }],
+  },
+  iconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.secondary + '1A', // light blue background for icon
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  iconContainerCompleted: {
+    backgroundColor: colors.success + '20',
   },
   content: {
     flex: 1,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: 'bold',
     color: colors.textPrimary,
   },
   progressText: {
     fontSize: 14,
     color: colors.textSecondary,
     marginTop: 4,
+    fontWeight: '700',
   },
   completedText: {
     color: colors.success,
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 12,
+    backgroundColor: colors.surface,
   },
   checkboxCompleted: {
     backgroundColor: colors.success,
     borderColor: colors.success,
   },
-  checkmark: {
-    color: colors.background,
-    fontSize: 14,
+  checkmarkIcon: {
     fontWeight: 'bold',
-  },
+  }
 });

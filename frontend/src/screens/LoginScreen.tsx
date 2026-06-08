@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/AuthContext';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { CustomInput } from '../components/CustomInput';
 import { colors } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
 
 export const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
@@ -31,8 +32,11 @@ export const LoginScreen = ({ navigation }: any) => {
         style={styles.content}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Log in to continue your habit journey</Text>
+          <View style={styles.iconContainer}>
+            <Ionicons name="leaf" size={64} color={colors.primary} />
+          </View>
+          <Text style={styles.title}>Welcome Back!</Text>
+          <Text style={styles.subtitle}>Let's keep that streak alive 🔥</Text>
         </View>
 
         <View style={styles.form}>
@@ -60,12 +64,13 @@ export const LoginScreen = ({ navigation }: any) => {
             onPress={signInWithEmail} 
             loading={loading}
             disabled={!email || !password}
+            variant="solid"
           />
           
           <PrimaryButton 
             title="Create an Account" 
             onPress={() => navigation.navigate('Signup')} 
-            variant="outline"
+            variant="secondary"
           />
         </View>
       </KeyboardAvoidingView>
@@ -84,25 +89,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
+    alignItems: 'center',
     marginBottom: 40,
   },
+  iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 4,
+    borderColor: colors.primaryShadow,
+  },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 36,
+    fontWeight: '900',
     color: colors.textPrimary,
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
     color: colors.textSecondary,
+    textAlign: 'center',
   },
   form: {
     width: '100%',
   },
   forgotPassword: {
-    color: colors.primary,
+    color: colors.secondary,
     textAlign: 'right',
     marginVertical: 16,
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
 });

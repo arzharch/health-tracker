@@ -1,5 +1,5 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
 import { colors } from '../theme/colors';
 
 interface PrimaryButtonProps {
@@ -7,7 +7,8 @@ interface PrimaryButtonProps {
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
-  variant?: 'solid' | 'outline';
+  variant?: 'solid' | 'outline' | 'danger' | 'secondary';
+  style?: any;
 }
 
 export const PrimaryButton: React.FC<PrimaryButtonProps> = ({ 
@@ -15,67 +16,107 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   onPress, 
   loading = false, 
   disabled = false,
-  variant = 'solid' 
+  variant = 'solid',
+  style
 }) => {
-  const isSolid = variant === 'solid';
-  
+  const [isPressed, setIsPressed] = useState(false);
+
+  const getBackgroundColor = () => {
+    switch (variant) {
+      case 'outline': return colors.background;
+      case 'danger': return colors.error;
+      case 'secondary': return colors.secondary;
+      case 'solid':
+      default: return colors.primary;
+    }
+  };
+
+  const getShadowColor = () => {
+    switch (variant) {
+      case 'outline': return colors.border;
+      case 'danger': return colors.errorShadow;
+      case 'secondary': return colors.secondaryShadow;
+      case 'solid':
+      default: return colors.primaryShadow;
+    }
+  };
+
+  const getTextColor = () => {
+    if (variant === 'outline') return colors.textSecondary;
+    return '#FFFFFF';
+  };
+
   return (
-    <TouchableOpacity
-      style={[
-        styles.button,
-        isSolid ? styles.solid : styles.outline,
-        disabled && styles.disabled
-      ]}
+    <Pressable
+      onPressIn={() => !disabled && !loading && setIsPressed(true)}
+      onPressOut={() => !disabled && !loading && setIsPressed(false)}
       onPress={onPress}
       disabled={disabled || loading}
+      style={[
+        styles.container, 
+        disabled && styles.disabled,
+        style
+      ]}
     >
-      {loading ? (
-        <ActivityIndicator color={isSolid ? colors.background : colors.primary} />
-      ) : (
-        <Text style={[
-          styles.text,
-          isSolid ? styles.textSolid : styles.textOutline
+      <View style={[
+        styles.buttonBase,
+        { backgroundColor: getShadowColor() },
+        isPressed && styles.buttonBasePressed
+      ]}>
+        <View style={[
+          styles.buttonTop,
+          { backgroundColor: getBackgroundColor() },
+          variant === 'outline' && { borderWidth: 2, borderColor: colors.border },
+          isPressed ? styles.buttonTopPressed : styles.buttonTopUnpressed
         ]}>
-          {title}
-        </Text>
-      )}
-    </TouchableOpacity>
+          {loading ? (
+            <ActivityIndicator color={getTextColor()} />
+          ) : (
+            <Text style={[styles.text, { color: getTextColor() }]}>
+              {title}
+            </Text>
+          )}
+        </View>
+      </View>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  button: {
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  solid: {
-    backgroundColor: colors.primary,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.primary,
+  container: {
+    marginVertical: 8,
+    width: '100%',
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.6,
+  },
+  buttonBase: {
+    borderRadius: 16,
+    width: '100%',
+    paddingBottom: 4, // This creates the 3D shadow effect
+  },
+  buttonBasePressed: {
+    paddingBottom: 0, // Compresses the shadow
+    marginTop: 4, // Moves the whole button down slightly
+  },
+  buttonTop: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  buttonTopUnpressed: {
+    transform: [{ translateY: 0 }],
+  },
+  buttonTopPressed: {
+    transform: [{ translateY: 0 }],
   },
   text: {
     fontSize: 16,
-    fontWeight: '600',
-  },
-  textSolid: {
-    color: colors.background,
-  },
-  textOutline: {
-    color: colors.primary,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
 });

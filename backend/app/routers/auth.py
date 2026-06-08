@@ -1,15 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
-from passlib.context import CryptContext
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 import jwt
 import os
+import bcrypt
 from app.database import supabase
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 SECRET_KEY = os.getenv("SUPABASE_JWT_SECRET", "super-secret-fallback-key")
 ALGORITHM = "HS256"
@@ -29,11 +27,16 @@ class Token(BaseModel):
     token_type: str
     user_id: str
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def get_password_hash(password: str) -> str:
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    return hashed.decode('utf-8')
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    pwd_bytes = plain_password.encode('utf-8')
+    hash_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(pwd_bytes, hash_bytes)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
